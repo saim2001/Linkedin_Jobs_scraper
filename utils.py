@@ -27,6 +27,12 @@ def create_db_cursor(cnx):
     cursor = cnx.cursor()
     return cursor
 
+def keep_driver_open(driver):
+    while True:
+        pass
+    return None
+
+
 def waitforelemtobeclickable(by,selector,driver,t=25):
     element_clickable = EC.element_to_be_clickable((by, selector))
     element = WebDriverWait(driver, t).until(element_clickable)

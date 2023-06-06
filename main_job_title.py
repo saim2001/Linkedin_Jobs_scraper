@@ -194,68 +194,65 @@ def insert_into_db(job_lst):
     jobs_data = []
 
     try:
+        company_unq = []
         # Iterate over each job in the job_lst
         for job in job_lst:
-            if 'company' in job:
-                # If the job has company information, create a tuple with company data
-                temp_tuple_comp = (
-                    job["company name"],
-                    job["company"]["website"],
-                    job["company linkedin"],
-                    job["company"]["country"],
-                    job["company"]["address"],
-                    None,
-                    None
-                )
-            else:
-                # If the job does not have company information, create a tuple with None values
-                temp_tuple_comp = (
-                    job["company name"],
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None
-                )
-            companies_data.append(temp_tuple_comp)
+            if job["company name"] not in company_unq:
+                if 'company' in job:
+                    # If the job has company information, create a tuple with company data
+                    temp_tuple_comp = (
+                        job["company name"],
+                        job["company"]["website"],
+                        job["company linkedin"],
+                        job["company"]["country"],
+                        job["company"]["address"],
+                        None,
+                        None
+                    )
+                else:
+                    # If the job does not have company information, create a tuple with None values
+                    temp_tuple_comp = (
+                        job["company name"],
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None
+                    )
+                companies_data.append(temp_tuple_comp)
+                company_unq.append(job['company name'])
 
             # Create a tuple with job data
             temp_tuple_job = (
-                job["position"],
-                job["country"],
-                job["location"],
-                job["recruiter_name"],
-                job["recruiter_linkedin"],
-                job["date_posted"]
-            )
+                    job["company name"],
+                    job["position"],
+                    job["country"],
+                    job["location"],
+                    job["recruiter_name"],
+                    job["recruiter_linkedin"],
+                    job["date_posted"]
+                )
             jobs_data.append(temp_tuple_job)
+
+
+
+
 
         # SQL query to insert company data into the database
         query_1 = "INSERT INTO companies_demand (name, website, linkedin, country, address, domain, twitter) values(%s, %s, %s, %s, %s, %s, %s)"
 
-        # Insert the first company's data
-        cursor.execute(query_1, companies_data[0])
+        # Insert the company's data
+        cursor.executemany(query_1, companies_data)
         first_id_inserted = cursor.lastrowid
-
-        # Insert the remaining companies' data
-        cursor.executemany(query_1, companies_data[1:-1])
-
-        # Insert the last company's data
-        cursor.execute(query_1, companies_data[-1])
-        last_id_inserted = cursor.lastrowid
 
         # Commit the changes to the database
         con.commit()
 
         # SQL query to select the inserted company IDs
-        select_query = "SELECT id FROM companies_demand WHERE id >= %s and id <= %s"
+        select_query = "SELECT id FROM companies_demand WHERE name=%s"
 
-        # Execute the select query with the inserted company IDs
-        cursor.execute(select_query, (first_id_inserted, last_id_inserted))
 
-        # Fetch all the inserted company IDs
-        inserted_ids = cursor.fetchall()
 
         # SQL query to insert job data into the database
         query_2 = """
@@ -264,11 +261,15 @@ def insert_into_db(job_lst):
           """
 
         # Iterate over the inserted company IDs and corresponding job data
-        for id, job in zip(inserted_ids, jobs_data):
-            temp_tuple = (id[0],) + job
+        for job in jobs_data:
+            temp_lst = list(job)
+            name = [job[0]]
+            select_comp_id = cursor.execute(select_query,name)
+            comp_id = cursor.fetchall()
+            temp_lst[0] = comp_id[0][0]
             # Replace the original job data with the modified tuple that includes the company ID
-            jobs_data[jobs_data.index(job)] = temp_tuple
-
+            jobs_data[jobs_data.index(job)] = tuple(temp_lst)
+        print(jobs_data)
         # Insert the job data into the database
         cursor.executemany(query_2, jobs_data)
 
@@ -294,7 +295,7 @@ if __name__ == '__main__':
     # Initialize the Chrome driver
     driver = initiate_driver('https://www.linkedin.com/')
     # Search for jobs with the specified search term
-    search_jobs = search_jobs('python developer', driver)
+    search_jobs = search_jobs('Crossover', driver)
     # Scrape all job details
     scraped_jobs = scrape_all_jobs(driver)
     pprint.pprint(scraped_jobs)
